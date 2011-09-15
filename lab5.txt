@@ -1,0 +1,24 @@
+Lab5 doc
+I spend one week to finish this project, five days for DMA, two for
+others.
+The doc of DMA is too long to see for me. However i did it at
+last. And the bug was strange and hard to find reason because i
+doesn't know this vary well.
+The bug of DMA I found as last was a ptr table address error. When i
+set ptr table address for bus master, I used a virtual address in outb
+function, which actually should be a physical address. So i waste a
+lot time to check other right code.
+
+Solution for exercise 4:
+After handling a dma interrupt, I should send a EOI to PIC to tell it
+the end of interrupt. The code is like this:
+    outb(0xA0, 0x20);
+
+The other was easy and I finished it quickly.Just finished the code as
+the ask is ok. And at last, i got a problem when did exercise
+13. After spwan function, the child process has a
+right data segment but a wrong dss segment, the hash value of it was
+0xc6900000 ! For passing the test script I add a memset() in spwan to
+clear the bss segment. Maybe there are some other bugs...
+
+No challenge was done, because no time. 

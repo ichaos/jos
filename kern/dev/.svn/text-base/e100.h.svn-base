@@ -1,0 +1,14 @@
+#ifndef JOS_DEV_E100_H
+#define JOS_DEV_E100_H 1
+
+#define PCI_E100_VID 0x8086
+#define PCI_E100_DID 0x1209
+
+#define PCI_E100_PORT 0x08
+#define E100_PORT_SOFT_RESET 0x00
+
+#define E100_IRQ 11
+
+int e100_init(struct pci_func *pcif);
+
+#endif	// !JOS_DEV_E100_H

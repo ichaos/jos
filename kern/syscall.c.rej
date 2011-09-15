@@ -1,0 +1,69 @@
+***************
+*** 275,285 ****
+  sys_ipc_recv(void *dstva)
+  {
+  	// LAB 4: Your code here.
+- 	panic("sys_ipc_recv not implemented");
+  	return 0;
+  }
+  
+  
+  // Dispatches to the correct kernel function, passing the arguments.
+  int32_t
+  syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+--- 478,532 ----
+  sys_ipc_recv(void *dstva)
+  {
+  	// LAB 4: Your code here.
++         //envid_t envid = curenv->env_id;
++         if(curenv->env_ipc_recving) {//it is waiting for a ipc
++                 panic("curenv is waiting for a ipc already, something wrong\n");
++         }else {
++                 if((int)dstva == -1)
++                         curenv->env_ipc_dstva = dstva;
++                 else if((uint32_t)dstva<UTOP && PGOFF(dstva)) {
++                         cprintf("sys_ipc_recv : dstva is illegal.\n");
++                         //panic("'");
++                         return -E_INVAL;
++                 }
++                 curenv->env_ipc_recving = 1;
++                 curenv->env_ipc_dstva = dstva;
++                 curenv->env_status = ENV_NOT_RUNNABLE;
++                 curenv->env_tf.tf_regs.reg_eax = 0;
++                 //cprintf("begin wait recv,curenv is %08x\n",curenv->env_id);
++                 sched_yield();
++         }
++         //*********************cj-code-end
++ 	//panic("sys_ipc_recv not implemented");
+  	return 0;
+  }
+  
++ static void
++ sys_dump_env(void){
++         //print env info;
++         cprintf("env_id = %08x\n", curenv->env_id);
++         cprintf("env_parent_id = %08x\n", curenv->env_parent_id);
++         cprintf("env_runs = %d\n",curenv->env_runs);
++         cprintf("env_pgdir = %08x\n",curenv->env_pgdir);
++         cprintf("env_cr3 = %08x\n", curenv->env_cr3);
++         cprintf("env_syscalls = %d\n", curenv->env_syscalls);
++ }
+  
++ static int
++ sys_ide_read(uint32_t secno, void *dst, size_t nsecs)
++ {
++         //test
++         //return ide_pio_read(secno, dst, nsecs);
++         return ide_dma_read(secno, dst, nsecs);
++ }
++ 
++ static int
++ sys_ide_write(uint32_t secno, void *src, size_t nsecs)
++ {
++         return ide_dma_write(secno, src, nsecs);
++         //return ide_pio_write(secno, src, nsecs);
++ }
++ 
+  // Dispatches to the correct kernel function, passing the arguments.
+  int32_t
+  syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)

@@ -1,0 +1,43 @@
+***************
+*** 10,29 ****
+  void
+  sched_yield(void)
+  {
+-     // Lab5 test specific: don't delete the following 4 lines
+-     // Break into the JOS kernel monitor when only 'fs' and 'idle'
+-     // are alive in the system.
+-     // A real, "production" OS of course would NOT do this -
+-     // it would just endlessly loop waiting for hardware interrupts
+-     // to cause other environments to become runnable.
+-     // However, in JOS it is easier for testing and grading
+-     // if we invoke the kernel monitor after each iteration,
+-     // because the first invocation of the idle environment
+-     // usually means everything else has run to completion.
+-     if(get_allocated_envs_n() == 2) {
+-         assert(envs[0].env_status == ENV_RUNNABLE);
+-         breakpoint();
+-     }
+  	// Implement simple round-robin scheduling.
+  	// Search through 'envs' for a runnable environment,
+  	// in circular fashion starting after the previously running env,
+--- 10,29 ----
+  void
+  sched_yield(void)
+  {
++         // Lab5 test specific: don't delete the following 4 lines
++         // Break into the JOS kernel monitor when only 'fs' and 'idle'
++         // are alive in the system.
++         // A real, "production" OS of course would NOT do this -
++         // it would just endlessly loop waiting for hardware interrupts
++         // to cause other environments to become runnable.
++         // However, in JOS it is easier for testing and grading
++         // if we invoke the kernel monitor after each iteration,
++         // because the first invocation of the idle environment
++         // usually means everything else has run to completion.
++         if(get_allocated_envs_n() == 2) {
++                 assert(envs[0].env_status == ENV_RUNNABLE);
++                 breakpoint();
++         }
+  	// Implement simple round-robin scheduling.
+  	// Search through 'envs' for a runnable environment,
+  	// in circular fashion starting after the previously running env,

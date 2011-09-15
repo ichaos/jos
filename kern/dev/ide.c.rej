@@ -1,0 +1,194 @@
+***************
+*** 148,159 ****
+          }
+          inb(idec->cmd_addr + IDE_REG_STATUS);
+          assert((inb(idec->ctl_addr) & (IDE_CTL_NIEN)) == 0);
+          return;
+      }
+  
+-     panic("dma_wait and irq_wait not implemented\n");
+  
+-     // Lab5: Your code here.
+      return;
+  }
+  
+--- 150,173 ----
+          }
+          inb(idec->cmd_addr + IDE_REG_STATUS);
+          assert((inb(idec->ctl_addr) & (IDE_CTL_NIEN)) == 0);
++         ide_dma_irqack(idec);
++         outb(IO_PIC2, 0x20);
+          return;
+      }
+  
++     idec->irq_wait = 0;
+  
++     //check dma status....
++     assert((inb(idec->ctl_addr) & (IDE_CTL_NIEN)) == 0);
++     envs[1].env_status = ENV_RUNNABLE;
++     //cprintf("bm status is %02x\n", inb(idec->bm_addr + IDE_BM_STAT_REG));
++     //cprintf("bm cmd reg is %x\n", inb(idec->bm_addr + IDE_BM_CMD_REG));
++ 
++     //outb(idec->bm_addr + IDE_BM_CMD_REG,
++     //inb(idec->bm_addr + IDE_BM_CMD_REG)&(~IDE_BM_CMD_START));
++     outb(IO_PIC2, 0x20);
++     //ide_dma_irqack(idec);
++     sched_yield();
+      return;
+  }
+  
+***************
+*** 163,181 ****
+  int
+  ide_dma_read(uint32_t secno, void *dst, size_t nsecs)
+  {
+-     panic("ide_dma_read not implemented");
+  
+-     // Lab5: Your code here.
+-     return 0;
+  }
+  
+  int __attribute__((__unused__))
+  ide_dma_write(uint32_t secno, const void *src, size_t nsecs)
+  {
+-     panic("ide_dma_write not implemented");
+  
+-     // Lab5: Your code here.
+-     return 0;
+  }
+  
+  static void
+--- 177,280 ----
+  int
+  ide_dma_read(uint32_t secno, void *dst, size_t nsecs)
+  {
++         //panic("ide_dma_read not implemented");
++         assert(nsecs == 8);//8*512byte = 4kB
++         //cprintf("dma_read\n");
++         //cprintf("dma_read(%x, %x, %x)\n", secno, dst, nsecs);
+  
++         pte_t *pte = pgdir_walk(curenv->env_pgdir, dst, 1);
++ 
++         uint8_t bm_cmd = inb(idec->bm_addr + IDE_BM_CMD_REG);
++         uint8_t bm_status = inb(idec->bm_addr + IDE_BM_STAT_REG);
++         bm_cmd |= (IDE_BM_CMD_START);
++         //cprintf("bm_cmd is %02x\n", bm_cmd);
++         bm_cmd &= (~IDE_BM_CMD_WRITE);
++ 
++         bm_status &= (~IDE_BM_STAT_ERROR);
++         bm_status &= (~IDE_BM_STAT_INTR);
++ 
++         idec->bm_prd[0].addr = PTE_ADDR(pte[0]);
++         //always 4k and one slot enough
++         idec->bm_prd[0].count = nsecs*512 | IDE_PRD_EOT;
++ 
++         ide_wait(idec, IDE_STAT_DRDY, IDE_STAT_DRDY);
++ 
++         outb(idec->bm_addr + IDE_BM_STAT_REG, bm_status);
++ 
++         outb(idec->cmd_addr+IDE_REG_SECTOR_COUNT, nsecs);
++         outb(idec->cmd_addr+IDE_REG_LBA_LOW, secno & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_LBA_MID, (secno >> 8) & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_LBA_HI, (secno >> 16) & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_DEVICE,
++              (0xE0 | ((idec->diskno)<<4) | ((secno>>24)&0x0F)));
++         outb(idec->cmd_addr+IDE_REG_CMD, IDE_CMD_READ_DMA);
++ 
++         //ide_dma_irqack(idec);
++ 
++         outl(idec->bm_addr + IDE_BM_PRDT_REG, PADDR(idec->bm_prd));
++         outb(idec->bm_addr + IDE_BM_CMD_REG, bm_cmd);
++ 
++         ide_wait(idec, IDE_STAT_DRDY, IDE_STAT_DRDY);
++ 
++         // Lab5: Your code here.
++         //ide_dma_irqack(idec);
++         idec->irq_wait = 1;
++         curenv->env_status = ENV_NOT_RUNNABLE;
++         //cprintf("out dma read\n");
++         sched_yield();
++         return 0;
+  }
+  
+  int __attribute__((__unused__))
+  ide_dma_write(uint32_t secno, const void *src, size_t nsecs)
+  {
++         //panic("ide_dma_write not implemented");
++         assert(nsecs == 8);
++         //cprintf("dma_write(%x, %x, %x)\n", secno, src, nsecs);
++         pte_t *pte = pgdir_walk(curenv->env_pgdir, src, 1);
+  
++         uint8_t bm_cmd = inb(idec->bm_addr + IDE_BM_CMD_REG);
++         uint8_t bm_status = inb(idec->bm_addr + IDE_BM_STAT_REG);
++         bm_cmd |= IDE_BM_CMD_START;
++         bm_cmd |= IDE_BM_CMD_WRITE;
++ 
++         bm_status &= (~IDE_BM_STAT_ERROR);
++         bm_status &= (~IDE_BM_STAT_INTR);
++ 
++         idec->bm_prd[0].addr = PTE_ADDR(pte[0]);
++         //always 4k and one slot enough
++         idec->bm_prd[0].count = nsecs*512 | IDE_PRD_EOT;
++ 
++         ide_wait(idec, IDE_STAT_DRDY, IDE_STAT_DRDY);
++ 
++         outb(idec->bm_addr + IDE_BM_STAT_REG, bm_status);
++ 
++         outb(idec->cmd_addr+IDE_REG_SECTOR_COUNT, nsecs);
++         outb(idec->cmd_addr+IDE_REG_LBA_LOW, secno & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_LBA_MID, (secno >> 8) & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_LBA_HI, (secno >> 16) & 0xFF);
++         outb(idec->cmd_addr+IDE_REG_DEVICE,
++              (0xE0 | ((idec->diskno)<<4) | ((secno>>24)&0x0F)));
++         outb(idec->cmd_addr+IDE_REG_CMD, IDE_CMD_WRITE_DMA);
++ 
++         //ide_dma_irqack(idec);
++ 
++         outl(idec->bm_addr + IDE_BM_PRDT_REG, PADDR(idec->bm_prd));
++         outb(idec->bm_addr + IDE_BM_CMD_REG, bm_cmd);
++              //inb(idec->bm_addr + IDE_BM_CMD_REG)|IDE_BM_CMD_WRITE);
++              //outb(idec->bm_addr + IDE_BM_CMD_REG,
++              //inb(idec->bm_addr + IDE_BM_CMD_REG)|IDE_BM_CMD_START);
++ 
++         ide_wait(idec, IDE_STAT_DRDY, IDE_STAT_DRDY);
++ 
++         //ide_dma_irqack(idec);
++ 
++         // Lab5: Your code here.
++         idec->irq_wait = 1;
++         curenv->env_status = ENV_NOT_RUNNABLE;
++         //cprintf("out dma\n");
++         sched_yield();
++         return 0;
+  }
+  
+  static void
+***************
+*** 252,260 ****
+      ide_string_shuffle(identify_buf.id.firmware,
+                         sizeof(identify_buf.id.firmware));
+  
+-     // Identify the Ultra DMA mode (1-5)    
+-     // Lab5: Your code here. 
+      int udma_mode = -1;
+  
+      if (ide_verbose)
+          cprintf("IDE device (%d sectors, UDMA %d%s): %1.40s\n",
+--- 351,367 ----
+      ide_string_shuffle(identify_buf.id.firmware,
+                         sizeof(identify_buf.id.firmware));
+  
++     // Identify the Ultra DMA mode (1-5)
++     // Lab5: Your code here.
+      int udma_mode = -1;
++     for (i=8; i<14; i++) {
++             if(identify_buf.id.udma_mode & (1<<i))
++                     udma_mode = i-8;
++     }
++     //udma_mode = 0;
++     //udma_mode = -11;
++     //udma_mode = (1<<udma_mode);
++     //ide_verbose = 1;
+  
+      if (ide_verbose)
+          cprintf("IDE device (%d sectors, UDMA %d%s): %1.40s\n",

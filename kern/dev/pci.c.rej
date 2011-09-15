@@ -1,0 +1,17 @@
+***************
+*** 28,33 ****
+      // How to match the IDE device? Put your code here.
+      // Hint: what is the class code and subclass code of IDE?
+      // Lab5: Your code here.
+      { 0, 0, 0 },
+  };
+  
+--- 28,35 ----
+      // How to match the IDE device? Put your code here.
+      // Hint: what is the class code and subclass code of IDE?
+      // Lab5: Your code here.
++     { PCI_CLASS_MASS_STORAGE, PCI_SUBCLASS_MASS_STORAGE_IDE, &ide_init},
++     //{ PCI_CLASS_SYSTEM, PCI_SUBCLASS_SYSTEM_DMA, 0},
+      { 0, 0, 0 },
+  };
+  
